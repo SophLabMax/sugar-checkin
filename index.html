@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#FFF7F0">
+<title>控糖打卡</title>
+<style>
+  :root {
+    --bg: #FFF7F0; --card: #FFFFFF; --text: #2B2118; --sub: #8A7B6C; --faint: #B8AB9C;
+    --line: #F0E4D8; --accent: #E8724A; --accent-soft: #FBE9E0;
+    --green: #3D9B6A; --green-soft: #E3F3EA; --red: #D95252; --red-soft: #FBE6E6;
+    --amber: #D9930D; --blue: #4A7FE8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1C1713; --card: #282119; --text: #F2EAE2; --sub: #A89884; --faint: #6E6152;
+      --line: #3A322A; --accent: #F08A5F; --accent-soft: #3A2A22;
+      --green: #5CB98A; --green-soft: #22352B; --red: #E87676; --red-soft: #3A2626;
+      --amber: #E0A83C; --blue: #7AA2F0;
+    }
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { font-size: 16px; }
+  body {
+    font-family: -apple-system, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg); color: var(--text);
+    max-width: 480px; margin: 0 auto;
+    padding: calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 32px);
+    min-height: 100vh;
+  }
+  .num { font-variant-numeric: tabular-nums; }
+
+  .head { display: flex; align-items: center; justify-content: space-between; }
+  .head h1 { font-size: 20px; font-weight: 600; }
+  .head .date { font-size: 13px; color: var(--sub); margin-top: 2px; }
+  .streak {
+    background: var(--accent-soft); color: var(--accent);
+    font-size: 12px; padding: 6px 12px; border-radius: 999px; font-weight: 500;
+    white-space: nowrap;
+  }
+  .streak b { font-size: 14px; }
+
+  .card {
+    background: var(--card); border-radius: 16px; padding: 16px;
+    margin-top: 14px; border: 1px solid var(--line);
+  }
+
+  .ring-row { display: flex; align-items: center; gap: 18px; }
+  .ring-wrap { position: relative; width: 116px; height: 116px; flex-shrink: 0; }
+  .ring-center {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+  .ring-grams { font-size: 26px; font-weight: 600; line-height: 1.1; }
+  .ring-target { font-size: 11px; color: var(--sub); margin-top: 2px; }
+  .ring-stats { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+  .rs-row { display: flex; justify-content: space-between; font-size: 13px; color: var(--sub); }
+  .rs-row .v { color: var(--text); font-weight: 500; }
+  .status-pill { font-size: 11px; padding: 2px 8px; border-radius: 999px; }
+  .status-pill.good { background: var(--green-soft); color: var(--green); }
+  .status-pill.warn { background: #FaF0DC; color: var(--amber); }
+  .status-pill.over { background: var(--red-soft); color: var(--red); }
+  .status-pill.idle { background: var(--accent-soft); color: var(--sub); }
+  .target-edit { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--faint); margin-top: 4px; }
+  .target-edit input {
+    width: 52px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg);
+    color: var(--text); padding: 3px 6px; font-size: 13px; text-align: center;
+  }
+
+  .card h2 { font-size: 13px; color: var(--sub); font-weight: 500; margin-bottom: 10px; }
+
+  .quick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .quick-item {
+    border: 1px solid var(--line); background: var(--bg); border-radius: 12px;
+    padding: 10px 12px; display: flex; justify-content: space-between; align-items: center;
+    font-size: 14px; color: var(--text); cursor: pointer; user-select: none;
+    transition: transform .08s ease;
+  }
+  .quick-item:active { transform: scale(.96); background: var(--accent-soft); }
+  .quick-item .g { font-size: 12px; color: var(--sub); }
+
+  .custom-row { display: flex; gap: 8px; margin-top: 10px; }
+  .custom-row input {
+    border: 1px solid var(--line); border-radius: 10px; background: var(--bg);
+    color: var(--text); padding: 10px 12px; font-size: 15px; min-width: 0;
+  }
+  .custom-row .nm { flex: 1; }
+  .custom-row .gm { width: 76px; }
+  .btn {
+    border: none; border-radius: 12px; font-size: 15px; font-weight: 500;
+    padding: 12px 16px; cursor: pointer; user-select: none;
+    transition: transform .08s ease, opacity .15s ease;
+  }
+  .btn:active { transform: scale(.96); }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-soft { background: var(--accent-soft); color: var(--accent); }
+  .btn-ghost { background: transparent; color: var(--sub); border: 1px solid var(--line); }
+  .btn-block { width: 100%; }
+
+  .entries { margin-top: 4px; }
+  .entry {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 0; border-bottom: 0.5px solid var(--line); font-size: 14px;
+  }
+  .entry:last-child { border-bottom: none; }
+  .entry .t { font-size: 12px; color: var(--faint); width: 40px; }
+  .entry .n { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .entry .g { color: var(--sub); font-size: 13px; }
+  .entry .del { border: none; background: none; color: var(--faint); font-size: 18px; padding: 0 4px; }
+  .empty { font-size: 13px; color: var(--faint); padding: 10px 0 4px; }
+
+  .sos-card {
+    margin-top: 10px; background: var(--accent-soft); border-radius: 12px; padding: 14px;
+    display: none;
+  }
+  .sos-card.show { display: block; animation: pop .18s ease; }
+  @keyframes pop { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; } }
+  .sos-title { font-size: 15px; font-weight: 600; }
+  .sos-desc { font-size: 13px; color: var(--sub); margin-top: 6px; line-height: 1.6; }
+  .sos-actions { display: flex; gap: 8px; margin-top: 12px; }
+  .sos-actions .btn { flex: 1; padding: 10px 8px; font-size: 13px; }
+
+  .two-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+
+  .chart-note { display: flex; justify-content: space-between; align-items: baseline; }
+  .chart-note .lg { font-size: 11px; color: var(--faint); }
+  .legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin: 0 3px 0 8px; vertical-align: middle; }
+
+  .foot { font-size: 12px; color: var(--faint); line-height: 1.7; margin-top: 16px; text-align: center; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 24px);
+    transform: translateX(-50%) translateY(8px);
+    background: var(--text); color: var(--bg);
+    border-radius: 10px; padding: 10px 18px; font-size: 14px;
+    opacity: 0; pointer-events: none; transition: all .2s ease; z-index: 9;
+    max-width: 80%; text-align: center;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="head">
+  <div>
+    <h1>控糖打卡</h1>
+    <div class="date" id="dateLabel"></div>
+  </div>
+  <div class="streak">连续达标 <b class="num" id="streakVal">0</b> 天</div>
+</div>
+
+<div class="card">
+  <div class="ring-row">
+    <div class="ring-wrap">
+      <svg width="116" height="116" viewBox="0 0 116 116">
+        <circle cx="58" cy="58" r="49" fill="none" stroke="var(--line)" stroke-width="10"/>
+        <circle id="ringArc" cx="58" cy="58" r="49" fill="none" stroke="var(--green)"
+                stroke-width="10" stroke-linecap="round" transform="rotate(-90 58 58)"
+                stroke-dasharray="0 999"/>
+      </svg>
+      <div class="ring-center">
+        <span class="ring-grams num" id="todayGrams">0</span>
+        <span class="ring-target">/ <span class="num" id="targetEcho">25</span> g</span>
+      </div>
+    </div>
+    <div class="ring-stats">
+      <div class="rs-row"><span>今日状态</span><span class="status-pill idle" id="todayStatus">尚未记录</span></div>
+      <div class="rs-row"><span>本周日均</span><span class="v num" id="weekAvg">0 g</span></div>
+      <div class="rs-row"><span>已抵挡诱惑</span><span class="v num" id="resistedVal">0 次</span></div>
+      <div class="target-edit">
+        每日目标
+        <input class="num" id="targetInput" type="number" inputmode="numeric" min="5" max="100" value="25">
+        g · WHO 建议 ≤25g
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>快速记录（含糖量为常见份量约值）</h2>
+  <div class="quick-grid" id="quickGrid"></div>
+  <div class="custom-row">
+    <input class="nm" id="customName" placeholder="自定义，如：半杯奶茶" maxlength="20">
+    <input class="gm num" id="customGrams" type="number" inputmode="decimal" min="0" max="200" step="0.5" placeholder="克">
+    <button class="btn btn-soft" id="customAdd">记一笔</button>
+  </div>
+  <div class="entries" id="entries"></div>
+</div>
+
+<div class="card">
+  <button class="btn btn-primary btn-block" id="sosBtn">我想吃甜的，给我替代方案</button>
+  <div class="sos-card" id="sosCard">
+    <div class="sos-title" id="sosTitle"></div>
+    <div class="sos-desc" id="sosDesc"></div>
+    <div class="sos-actions">
+      <button class="btn btn-primary" id="resistBtn">我忍住了</button>
+      <button class="btn btn-ghost" id="nextTipBtn">换一个</button>
+      <button class="btn btn-ghost" id="giveinBtn">没忍住</button>
+    </div>
+  </div>
+  <div class="two-btns">
+    <button class="btn btn-soft" id="checkinBtn">今日打卡（没超目标）</button>
+    <button class="btn btn-ghost" id="resetToday">清空今日记录</button>
+  </div>
+</div>
+
+<div class="card">
+  <div class="chart-note">
+    <h2 style="margin-bottom:0">近 7 天趋势</h2>
+    <span class="lg">
+      <span class="legend-dot" style="background:var(--blue)"></span>达标
+      <span class="legend-dot" style="background:var(--red)"></span>超标
+      虚线 = 目标
+    </span>
+  </div>
+  <div id="chartWrap" style="margin-top:10px"></div>
+</div>
+
+<div class="foot">
+  控制添加糖是减腹部脂肪的关键一步：精制糖会促进内脏脂肪堆积。<br>
+  少一杯含糖饮料，腰围就少一分压力。数据仅保存在本机浏览器。
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  var KEY = "sugar-checkin-mobile-v1";
+
+  var QUICK = [
+    { n: "西班牙拿铁·中杯", g: 25 },
+    { n: "阿嬷手作·中杯", g: 35 },
+    { n: "冰激凌 100克", g: 21 },
+    { n: "蛋糕 100克", g: 30 },
+    { n: "面包/贝果 1个", g: 10 },
+    { n: "橙汁 300ml", g: 27 }
+  ];
+
+  var TIPS = [
+    { t: "去喝一杯温水（300ml）", d: "很多时候「想吃甜」其实是口渴。喝完等 10 分钟，再看看还想不想吃。" },
+    { t: "出门快走 10 分钟", d: "转移注意力的同时多消耗一点热量，对减少内脏脂肪是双倍收益。" },
+    { t: "喝一杯无糖茶或黑咖啡", d: "苦味能有效压一压甜瘾，而且几乎零热量。" },
+    { t: "吃一小把原味坚果", d: "脂肪和蛋白质带来的饱腹感，比糖持久得多。" },
+    { t: "去刷个牙", d: "薄荷味能显著降低食欲，是最简单的「食欲开关」。" },
+    { t: "吃一个苹果或一小盒蓝莓", d: "用天然果糖加膳食纤维替代精制糖，血糖波动小得多。" },
+    { t: "深呼吸 20 次，或冥想 3 分钟", d: "压力性进食的冲动通常在 10 分钟内自己消退。" },
+    { t: "嚼一片无糖口香糖", d: "给嘴巴找点事做，甜瘾常常只是「想嚼点什么」。" },
+    { t: "喝一罐无糖气泡水", d: "气泡感能缓解「想喝点有味道的」的冲动。" },
+    { t: "吃一个水煮蛋", d: "蛋白质是最抗饿的零食，一个只有约 70 千卡。" }
+  ];
+
+  var state = { target: 25, days: {} };
+  try {
+    var raw = localStorage.getItem(KEY);
+    if (raw) {
+      var p = JSON.parse(raw);
+      if (p && typeof p === "object") {
+        state.target = p.target || 25;
+        state.days = p.days || {};
+      }
+    }
+  } catch (e) {}
+
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+  }
+  function dayKey(d) {
+    var m = String(d.getMonth() + 1).padStart(2, "0"), dd = String(d.getDate()).padStart(2, "0");
+    return d.getFullYear() + "-" + m + "-" + dd;
+  }
+  function today() { return dayKey(new Date()); }
+  function dayOf(key) {
+    if (!state.days[key]) state.days[key] = { entries: [], resisted: 0, checked: false };
+    return state.days[key];
+  }
+  function dayTotal(key) {
+    var d = state.days[key];
+    return d ? d.entries.reduce(function (s, e) { return s + e.g; }, 0) : 0;
+  }
+  function $(id) { return document.getElementById(id); }
+
+  var toastTimer = null;
+  function toast(msg) {
+    var el = $("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove("show"); }, 1800);
+  }
+
+  function dayQualifies(key) {
+    var d = state.days[key];
+    if (!d) return false;
+    return (d.entries.length > 0 || d.checked) && dayTotal(key) <= state.target;
+  }
+  function calcStreak() {
+    var streak = 0, d = new Date();
+    if (!dayQualifies(dayKey(d))) d.setDate(d.getDate() - 1);
+    while (dayQualifies(dayKey(d))) { streak++; d.setDate(d.getDate() - 1); }
+    return streak;
+  }
+
+  function render() {
+    var total = dayTotal(today()), target = state.target;
+    var ratio = target > 0 ? total / target : 0;
+    var C = 2 * Math.PI * 49;
+    var arc = $("ringArc");
+    arc.setAttribute("stroke-dasharray", Math.min(ratio, 1) * C + " 999");
+    arc.setAttribute("stroke", ratio <= 0.8 ? "var(--green)" : ratio <= 1 ? "var(--amber)" : "var(--red)");
+
+    $("todayGrams").textContent = Math.round(total * 10) / 10;
+    $("targetEcho").textContent = target;
+    $("targetInput").value = target;
+
+    var st = $("todayStatus");
+    if (total === 0) { st.textContent = "尚未记录"; st.className = "status-pill idle"; }
+    else if (ratio <= 0.8) { st.textContent = "控制良好"; st.className = "status-pill good"; }
+    else if (ratio <= 1) { st.textContent = "接近上限"; st.className = "status-pill warn"; }
+    else { st.textContent = "已超目标"; st.className = "status-pill over"; }
+
+    $("streakVal").textContent = calcStreak();
+    $("resistedVal").textContent = Object.keys(state.days).reduce(function (s, k) {
+      return s + (state.days[k].resisted || 0);
+    }, 0) + " 次";
+
+    var sum = 0, n = 0;
+    for (var i = 0; i < 7; i++) {
+      var d = new Date(); d.setDate(d.getDate() - i);
+      if (state.days[dayKey(d)]) { sum += dayTotal(dayKey(d)); n++; }
+    }
+    $("weekAvg").textContent = (n ? Math.round(sum / n) : 0) + " g";
+
+    renderEntries();
+    renderChart();
+  }
+
+  function renderEntries() {
+    var box = $("entries");
+    box.innerHTML = "";
+    var d = state.days[today()];
+    if (!d || d.entries.length === 0) {
+      var hint = document.createElement("div");
+      hint.className = "empty";
+      hint.textContent = "今天还没有记录。吃了甜的，点上面快速记一笔。";
+      box.appendChild(hint);
+      return;
+    }
+    d.entries.slice().reverse().forEach(function (e) {
+      var row = document.createElement("div");
+      row.className = "entry";
+      row.innerHTML = '<span class="t num"></span><span class="n"></span><span class="g num"></span>';
+      row.children[0].textContent = e.time;
+      row.children[1].textContent = e.name;
+      row.children[2].textContent = "+" + e.g + "g";
+      var del = document.createElement("button");
+      del.className = "del"; del.textContent = "×";
+      del.setAttribute("aria-label", "删除 " + e.name);
+      del.addEventListener("click", function () {
+        var arr = dayOf(today()).entries;
+        var idx = arr.findIndex(function (x) { return x.id === e.id; });
+        if (idx >= 0) arr.splice(idx, 1);
+        save(); render();
+      });
+      row.appendChild(del);
+      box.appendChild(row);
+    });
+  }
+
+  function renderChart() {
+    var wrap = $("chartWrap");
+    wrap.innerHTML = "";
+    var W = 420, H = 132, padL = 4, padB = 20, padT = 12;
+    var data = [];
+    for (var i = 6; i >= 0; i--) {
+      var d = new Date(); d.setDate(d.getDate() - i);
+      data.push({ label: (d.getMonth() + 1) + "/" + d.getDate(), total: dayTotal(dayKey(d)), has: !!state.days[dayKey(d)] });
+    }
+    var maxV = Math.max(state.target * 1.3, Math.max.apply(null, data.map(function (x) { return x.total; })) || 1);
+    var bw = (W - padL * 2) / 7;
+    var y = function (v) { return padT + (H - padB - padT) * (1 - v / maxV); };
+    var ns = "http://www.w3.org/2000/svg";
+    var svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+    svg.setAttribute("width", "100%");
+
+    var line = document.createElementNS(ns, "line");
+    line.setAttribute("x1", padL); line.setAttribute("x2", W - padL);
+    line.setAttribute("y1", y(state.target)); line.setAttribute("y2", y(state.target));
+    line.setAttribute("stroke", "var(--faint)");
+    line.setAttribute("stroke-dasharray", "4 4"); line.setAttribute("stroke-width", "1");
+    svg.appendChild(line);
+
+    data.forEach(function (pt, i) {
+      var x = padL + i * bw + bw * 0.24, w = bw * 0.52;
+      var barH = Math.max(0, (H - padB - padT) * (pt.total / maxV));
+      var rect = document.createElementNS(ns, "rect");
+      rect.setAttribute("x", x); rect.setAttribute("width", w);
+      rect.setAttribute("y", H - padB - barH);
+      rect.setAttribute("height", Math.max(barH, pt.has ? 2 : 0));
+      rect.setAttribute("rx", 4);
+      rect.setAttribute("fill", !pt.has || pt.total === 0 ? "var(--line)"
+        : pt.total <= state.target ? "var(--blue)" : "var(--red)");
+      svg.appendChild(rect);
+
+      var lab = document.createElementNS(ns, "text");
+      lab.setAttribute("x", x + w / 2); lab.setAttribute("y", H - 5);
+      lab.setAttribute("text-anchor", "middle"); lab.setAttribute("font-size", "11");
+      lab.setAttribute("fill", "var(--faint)");
+      lab.textContent = pt.label;
+      svg.appendChild(lab);
+
+      if (pt.total > 0) {
+        var val = document.createElementNS(ns, "text");
+        val.setAttribute("x", x + w / 2); val.setAttribute("y", H - padB - barH - 4);
+        val.setAttribute("text-anchor", "middle"); lab.setAttribute("font-size", "11");
+        val.setAttribute("font-size", "11"); val.setAttribute("fill", "var(--sub)");
+        val.textContent = Math.round(pt.total);
+        svg.appendChild(val);
+      }
+    });
+    wrap.appendChild(svg);
+  }
+
+  var lastTip = -1;
+  function showTip() {
+    var i;
+    do { i = Math.floor(Math.random() * TIPS.length); } while (i === lastTip && TIPS.length > 1);
+    lastTip = i;
+    $("sosTitle").textContent = TIPS[i].t;
+    $("sosDesc").textContent = TIPS[i].d;
+    $("sosCard").classList.add("show");
+  }
+
+  function addEntry(name, g) {
+    var d = dayOf(today()), now = new Date();
+    d.entries.push({
+      id: "e" + Date.now() + Math.floor(Math.random() * 1000),
+      name: name, g: g,
+      time: String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0")
+    });
+    save(); render();
+    if (dayTotal(today()) > state.target) toast("今日已超目标，下一口换成水吧");
+    else toast("已记录 " + name + " +" + g + "g");
+  }
+
+  // ---------- init ----------
+  var now = new Date();
+  $("dateLabel").textContent = now.getFullYear() + "年" + (now.getMonth() + 1) + "月" + now.getDate() +
+    "日 · 周" + "日一二三四五六"[now.getDay()];
+
+  var grid = $("quickGrid");
+  QUICK.forEach(function (item) {
+    var b = document.createElement("button");
+    b.className = "quick-item";
+    b.innerHTML = '<span class="n"></span><span class="g num"></span>';
+    b.children[0].textContent = item.n;
+    b.children[1].textContent = "约" + item.g + "g";
+    b.addEventListener("click", function () { addEntry(item.n, item.g); });
+    grid.appendChild(b);
+  });
+
+  $("customAdd").addEventListener("click", function () {
+    var name = $("customName").value.trim() || "自定义甜食";
+    var g = parseFloat($("customGrams").value);
+    if (!(g > 0)) { toast("请填写糖含量（克）"); return; }
+    addEntry(name, g);
+    $("customName").value = "";
+    $("customGrams").value = "";
+  });
+
+  $("targetInput").addEventListener("change", function (e) {
+    var v = parseInt(e.target.value, 10);
+    if (v >= 5 && v <= 100) { state.target = v; save(); render(); toast("目标已更新为 " + v + "g"); }
+    else e.target.value = state.target;
+  });
+
+  $("sosBtn").addEventListener("click", showTip);
+  $("nextTipBtn").addEventListener("click", showTip);
+  $("resistBtn").addEventListener("click", function () {
+    var d = dayOf(today());
+    d.resisted = (d.resisted || 0) + 1;
+    d.checked = true;
+    save(); render();
+    $("sosCard").classList.remove("show");
+    toast("漂亮！又抵挡住了一次诱惑");
+  });
+  $("giveinBtn").addEventListener("click", function () {
+    $("sosCard").classList.remove("show");
+    $("customName").focus();
+    toast("如实记下来，明天会更好");
+  });
+
+  $("checkinBtn").addEventListener("click", function () {
+    if (dayTotal(today()) > state.target) { toast("今天已超目标，明天再打卡吧"); return; }
+    dayOf(today()).checked = true;
+    save(); render();
+    toast("打卡成功，继续保持！");
+  });
+
+  $("resetToday").addEventListener("click", function () {
+    if (!state.days[today()] || (dayOf(today()).entries.length === 0 && !dayOf(today()).checked)) {
+      toast("今天还没有记录"); return;
+    }
+    if (confirm("确定清空今天的所有记录吗？")) {
+      delete state.days[today()];
+      save(); render();
+      toast("已清空今日记录");
+    }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
